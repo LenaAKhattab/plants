@@ -1,0 +1,10 @@
+{
+  "backbone": "EfficientNetB0",
+  "num_classes": 38,
+  "image_size": [160, 160],
+  "class_names_file": "class_names.json",
+  "loss": "sparse_categorical_crossentropy",
+  "healthy_rule": "After first '___', condition == 'healthy' => Healthy; else Diseased",
+  "confidence_uncertain_below": 60.0,
+  "confidence_accept_override": 75.0
+}
