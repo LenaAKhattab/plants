@@ -131,7 +131,7 @@ export function UploadHero({
       <div className="w-full max-w-[1240px]">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="font-display text-2xl font-bold tracking-tight text-leaf-900 sm:text-3xl">
-            Plant disease analysis
+            Plant Disease Detection
           </h1>
           <p className="mt-1.5 text-sm leading-snug text-slate-600 sm:text-base">
             Upload or capture a leaf photo for AI-powered disease classification.
