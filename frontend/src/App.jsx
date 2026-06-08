@@ -4,8 +4,9 @@ import {
   ResultScreen,
   UploadHero,
 } from "./components/UploadFlow.jsx";
+import { API_BASE_URL } from "./api.js";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_BASE = API_BASE_URL;
 
 /** idle | selected | analyzing | result */
 function derivePhase({ loading, result, imageFile }) {
