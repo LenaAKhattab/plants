@@ -1,6 +1,5 @@
 import {
   buildResultSections,
-  getConfidenceExplanation,
   getDiseaseFacts,
   getSeverity,
   MODEL_INPUT_SIZE,
@@ -298,7 +297,6 @@ function DiagnosisPanel({ result, backendOk, inferenceMs }) {
   const sections = buildResultSections(result);
   const facts = getDiseaseFacts(result);
   const severity = getSeverity(result);
-  const confidenceNote = getConfidenceExplanation(result.confidence, result.status);
   const reportId = `LS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
   return (
@@ -319,24 +317,6 @@ function DiagnosisPanel({ result, backendOk, inferenceMs }) {
               <p className="mt-1 text-base text-slate-600">{result.condition}</p>
             </div>
             <StatusBadge status={result.status} />
-          </div>
-
-          {/* Confidence hero */}
-          <div className="mt-6 flex flex-col gap-4 border-t border-slate-200/80 pt-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">AI confidence score</p>
-              <p className={`mt-1 font-display text-5xl font-bold tabular-nums ${statusStyle.text}`}>
-                {result.confidence}
-                <span className="text-2xl font-semibold">%</span>
-              </p>
-            </div>
-            <p className="max-w-sm text-sm leading-relaxed text-slate-600">{confidenceNote}</p>
-          </div>
-          <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={`h-full rounded-full ${statusStyle.bar}`}
-              style={{ width: `${Math.min(result.confidence, 100)}%` }}
-            />
           </div>
         </header>
 
