@@ -267,13 +267,6 @@ function UncertainPanel({ result, backendOk, inferenceMs }) {
           <StatusBadge status={result.status} />
         </div>
 
-        {result.confidence > 0 && (
-          <div className="flex items-end gap-4 border-b border-slate-100 pb-4">
-            <p className="font-display text-4xl font-bold tabular-nums text-amber-800">{result.confidence}%</p>
-            <p className="pb-1 text-sm text-slate-600">Best-match confidence — below reliable threshold</p>
-          </div>
-        )}
-
         <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3">
           <p className="text-sm leading-relaxed text-amber-950">
             {result.explanation ||
