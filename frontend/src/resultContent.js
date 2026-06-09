@@ -1,3 +1,5 @@
+import { getClassMetadata } from "./diseaseMetadata";
+
 export const MODEL_NAME = "EfficientNetB0";
 export const MODEL_INPUT_SIZE = "160 × 160";
 
@@ -165,6 +167,7 @@ const HEALTHY_PROFILES = {
   },
 };
 
+/** @deprecated Legacy condition-substring lookup — used only as fallback for unmigrated classes. */
 function matchProfile(condition) {
   const lower = condition.toLowerCase();
   return DISEASE_PROFILES.find((p) => p.keys.some((k) => lower.includes(k)));
@@ -178,8 +181,23 @@ function getHealthyProfile(plantName) {
   return HEALTHY_PROFILES.default;
 }
 
+function warnMissingClassMetadata(predictedClass, context) {
+  console.warn(
+    `[LeafScan] Missing class metadata for "${predictedClass ?? "(none)"}" in ${context}; using condition-based fallback.`,
+  );
+}
+
+function sectionsFromMetadata(meta, advice) {
+  return {
+    description: meta.description,
+    actions: [advice || meta.defaultAction || "Confirm diagnosis locally before applying chemical treatments."],
+    symptoms: meta.symptoms,
+    prevention: meta.prevention,
+  };
+}
+
 export function buildResultSections(result) {
-  const { plant_name, condition, status, advice, explanation } = result;
+  const { plant_name, condition, status, advice, explanation, predicted_class } = result;
 
   if (status === "Uncertain") {
     return {
@@ -216,13 +234,20 @@ export function buildResultSections(result) {
     };
   }
 
-  const profile = matchProfile(condition);
-  if (profile) {
+  const classMeta = getClassMetadata(predicted_class);
+  if (classMeta) {
+    return sectionsFromMetadata(classMeta, advice);
+  }
+
+  warnMissingClassMetadata(predicted_class, "buildResultSections");
+
+  const legacyProfile = matchProfile(condition);
+  if (legacyProfile) {
     return {
-      description: profile.description,
+      description: legacyProfile.description,
       actions: advice ? [advice] : ["Confirm diagnosis locally before applying chemical treatments."],
-      symptoms: profile.symptoms,
-      prevention: profile.prevention,
+      symptoms: legacyProfile.symptoms,
+      prevention: legacyProfile.prevention,
     };
   }
 
@@ -297,27 +322,30 @@ function inferSpreadMethod(diseaseType) {
   return map[diseaseType] || map["Plant pathogen (unspecified)"];
 }
 
-export function getDiseaseFacts(result) {
-  const diseaseType = inferDiseaseType(result.condition, result.status);
-  const threatLevel = getSeverity(result).level;
+function severityFromTier(tier, confidence) {
+  const conf = confidence ?? 0;
+
+  if (tier === "high") {
+    return {
+      level: conf >= 65 ? "High" : "Medium",
+      description: "This condition can spread rapidly and may cause significant crop loss if untreated.",
+    };
+  }
+  if (tier === "medium") {
+    return {
+      level: conf >= 75 ? "Medium" : "Low",
+      description: "Moderate agronomic impact — early intervention is recommended.",
+    };
+  }
   return {
-    diseaseType,
-    affectedPlant: result.plant_name,
-    spreadMethod: inferSpreadMethod(diseaseType),
-    threatLevel: result.status === "Healthy" ? "Minimal" : threatLevel,
+    level: conf >= 80 ? "Medium" : "Low",
+    description: "Localized symptoms — monitor closely and confirm in the field.",
   };
 }
 
-export function getSeverity(result) {
-  if (result.status === "Healthy") {
-    return {
-      level: "Low",
-      description: "No significant disease indicators detected in this sample.",
-    };
-  }
-
-  const cond = result.condition.toLowerCase();
-  const conf = result.confidence ?? 0;
+function severityFromCondition(condition, confidence) {
+  const cond = condition.toLowerCase();
+  const conf = confidence ?? 0;
 
   if (HIGH_SEVERITY_KEYS.some((k) => cond.includes(k))) {
     return {
@@ -335,6 +363,52 @@ export function getSeverity(result) {
     level: conf >= 80 ? "Medium" : "Low",
     description: "Localized symptoms — monitor closely and confirm in the field.",
   };
+}
+
+export function getDiseaseFacts(result) {
+  const classMeta = getClassMetadata(result.predicted_class);
+
+  let diseaseType;
+  let spreadMethod;
+
+  if (classMeta) {
+    diseaseType = classMeta.diseaseType;
+    spreadMethod = classMeta.spreadMethod ?? inferSpreadMethod(classMeta.diseaseType);
+  } else {
+    if (result.status === "Diseased") {
+      warnMissingClassMetadata(result.predicted_class, "getDiseaseFacts");
+    }
+    diseaseType = inferDiseaseType(result.condition, result.status);
+    spreadMethod = inferSpreadMethod(diseaseType);
+  }
+
+  const threatLevel = getSeverity(result).level;
+  return {
+    diseaseType,
+    affectedPlant: result.plant_name,
+    spreadMethod,
+    threatLevel: result.status === "Healthy" ? "Minimal" : threatLevel,
+  };
+}
+
+export function getSeverity(result) {
+  if (result.status === "Healthy") {
+    return {
+      level: "Low",
+      description: "No significant disease indicators detected in this sample.",
+    };
+  }
+
+  const classMeta = getClassMetadata(result.predicted_class);
+  if (classMeta?.severityTier) {
+    return severityFromTier(classMeta.severityTier, result.confidence);
+  }
+
+  if (result.status === "Diseased") {
+    warnMissingClassMetadata(result.predicted_class, "getSeverity");
+  }
+
+  return severityFromCondition(result.condition, result.confidence);
 }
 
 export function getConfidenceExplanation(confidence, status) {
